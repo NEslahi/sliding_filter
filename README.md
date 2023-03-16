@@ -31,12 +31,12 @@ soft- or hard-shrinkage), and $\lambda>0$ is a thresholding factor.
 \
 >>> Create a buffer block/cube (i.e. array of all ones)
 ```math
-w_i = 1
+w_i \equiv 1
 ```
 
 >> Add $\hat{x}_i^{w}$ to its corrsponding position in $\hat{x}$
 \
->> Add $\hat{w}$ to its corrsponding position in $w$
+>> Add $\hat{w}_i$ to its corrsponding position in $w$
 >
 > Compensating the effect of accumulation
 ```math
