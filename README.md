@@ -1,15 +1,15 @@
 # Sliding Filter For AWGN Denosing
 
 This package contains the [`sliding filter`](./sliding_filter.py) for removal of
-additive stationary white Gaussian noise (AWGN) from 2D/3D image using the sliding 
+additive stationary white Gaussian noise (AWGN) from 2D/3D images using the sliding 
 window approach. 
-Unlike traditional way of implementation using for-loops for local filtering
+Unlike a traditional way of implementation using for-loops for local filtering,
 this implementation does not use any for-loop, making the code way faster!
 
-NOTE: [`sliding filter`](./sliding_filter.py) accepts a variety of sparsifying/decorrelating
-transforms for the transform-domain filtering step. This transforms which are separable
-can be selected from the same family or be composed of different families (please see
-the details of `transform_type` in [syntax](#syntax))
+NOTE: The [`sliding filter`](./sliding_filter.py) accepts a variety of sparsifying/decorrelating
+transforms for the local transform-domain filtering step. This transforms, which are separable,
+can be selected from the same family or composed of different families (see
+the details of `transform_type` in the [syntax](#syntax) section for more information).
 
 </br></br>
 
@@ -49,7 +49,7 @@ w_i = 1
 ### Syntax :scroll:
 function interface
 ```python
-    sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=None, step_size=None)
+    sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=None, step_size=None, shrinkage_type=None)
     """
     Args:
     - noisy_img (ndarray): 2D/3D noisy image (2D: monochromatic; 3D: RGB, hyperspectral, ...)
@@ -77,6 +77,10 @@ function interface
               - "distinct" : filter operates on non-overlapping parsing blocks/cubes
               if the type is list or tuple, then step_size indicates the step-size (stride)
                toward each dimension.
+               
+    - shrinkage_type (str) : type of shrinkage operator, which can be either of the following:
+              - "h" or "hard"   : hard-shrinkage (default)
+              - "s" or "soft"   : soft-shrinkage
 
               
     Returns:
