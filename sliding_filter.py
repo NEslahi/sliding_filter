@@ -4,13 +4,19 @@ from scipy.fft import fft, dct, dst
 import pywt, warnings
 
 
-def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=None, step_size=None)-> np.array:
+def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=None, 
+                   step_size=None, shrinkage_type=None)-> np.array:
     """
     sliding_filter performs (AWGN) denoising on the sets of 2D blocks or 3D cubes 
     extracted from the noisy image using sliding window.  
     
     * NOTE: My implementation of the sliding filter does not use any for-loop for sliding
      window, which makes the code way faster *
+
+    * NOTE: The `sliding filter` accepts a variety of sparsifying/decorrelating transforms
+    for the local transform-domain filtering step. This transforms, which are separable,can
+    be selected from the same family or composed of different families (see the details of 
+    `transform_type` in the following syntax section for more information). *
     
     
     Args:
@@ -39,6 +45,10 @@ def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=Non
               - "distinct" : filter operates on non-overlapping parsing blocks/cubes
               if the type is list or tuple, then step_size indicates the step-size (stride)
                toward each dimension.
+
+    - shrinkage_type (str) : type of shrinkage operator, which can be either of the following:
+              - "h" or "hard"   : hard-shrinkage (default)
+              - "s" or "soft"   : soft-shrinkage
 
               
     Returns:
@@ -95,6 +105,15 @@ def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=Non
     if transform_type is None:
         transform_type = ('dct',)*len(partition_size) 
 
+    
+    if shrinkage_type is None:
+        shrinkage_type = 'hard'
+    elif shrinkage_type.lower() not in ['h', 'hard', 's', 'soft']:
+        raise ValueError('This implementation accepts\n'
+                         ' "h" or "hard" : hard-shrinkage, or\n'
+                         ' "s" or "soft" : soft-shrinakge,\n'
+                         'for the shrinkage_type')
+
 
     ## setting the sparsifying/decorrelating transform bases
     tm_0 = get_transform_matrix(partition_size[0], transform_type[0])
@@ -123,9 +142,15 @@ def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=Non
     # lambda_thr = np.sqrt(2*np.log(np.prod(partition_size))) # Donoho's universal thresholing factor:
     lambda_thr = 3  # thresholding factor based on 3-sigma rule
     threshold  = lambda_thr * noise_std  # threshold value
-    ## hard-thresholding step (exploiting sparsity by killing insignificant coefficients
-     # corresponding mostly to noise)
-    dmy = dmy * (np.abs(dmy) > threshold) 
+    if shrinkage_type in ["h", "hard"]:
+        ## hard-thresholding step 
+        # (exploiting sparsity by killing insignificant coefficients corresponding mostly to noise)
+        dmy = dmy * (np.abs(dmy) > threshold)
+    else:
+        ## soft-thresholding step 
+        dmy = np.sign(dmy) * np.maximum(np.abs(dmy) - threshold, 0)
+
+    
 
     ## computing the 2D/3D inverse transform of all spectra (getting denoised blocks/cubes)
     dmy = tm_2.conj()   @ reshp(dmy.T, (-1, partition_size[2])).T
@@ -213,8 +238,6 @@ def get_transform_matrix(N, transform_type, dec_levels=0):
         # 'sp1' : smooth-padding
         # 'per' : periodization  **we use this one**
 
-        # pywt.param_warnings(False)
-        # warnings.filterwarnings("ignore", category=UserWarning)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             Tforward = np.zeros((N, N))
@@ -226,7 +249,6 @@ def get_transform_matrix(N, transform_type, dec_levels=0):
                                         mode='periodization'),
                                     dtype=object)).reshape(-1,)                                   
 
-        # warnings.filterwarnings("default", category=DeprecationWarning)
 
     # Normalize the basis elements
     if transform_type.lower() != 'fft':
@@ -275,60 +297,69 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt 
 
     test_images = [
-    'camera',
-    'coins',
-    'cell',
-    'clock',
-    'moon',
-    'page',
-    'rocket',
     'astronaut',
+    'camera',
+    'cell',
     'checkerboard',
     'chelsea',
     'clock',
+    'coins',
     'coffee',
     'horse',
     'hubble_deep_field',
     'immunohistochemistry',
     'logo',
     'microaneurysms',
-    'text',
-    'shepp_logan_phantom'
+    'moon',
+    'page',
+    'rocket',
+    'shepp_logan_phantom',
+    'text'
     ]
 
     # Load and display an image (selected randomly) from the above list
-    idx = np.random.randint(0,len(test_images))
+    # idx = np.random.randint(0,len(test_images))
+    idx = 1
     x = getattr(data, test_images[idx])()
-
-    print(test_images[idx])
     
+    test_image_name = 'fake_cameraman!' if test_images[idx]=='camera' else test_images[idx]
+    print(test_image_name)
+    
+    max_x = np.max(x)
     # randomely selected AWGN standard deviation (use your own desired value!)
-    noise_std = np.random.uniform(.05, .5) * np.max(x) 
+    noise_std = np.random.uniform(.05, .5) * max_x
     
     # add noise to clean image
     z = x + np.random.normal(0, noise_std, x.shape) # noisy image
-    PSNR_nsy = 10*np.log10(np.max(x)**2/np.mean((x - z)**2))
+    PSNR_nsy = 10*np.log10(max_x**2/np.mean((x - z)**2))
     
     # denoising
     xhat = sliding_filter(z, noise_std) # denoised image
     # xhat = sliding_filter(z, noise_std, transform_type=('bior1.5','haar','dct')[:len(z)] )
     
-    PSNR_den = 10*np.log10(np.max(x)**2/np.mean((x - xhat)**2))
+    PSNR_den = 10*np.log10(max_x**2/np.mean((x - xhat)**2))
 
     print(f"PSNR of the noisy and denoised images are \
 respectively {PSNR_nsy:.2f} (dB) and {PSNR_den:.2f} (dB)")
 
-    print(hadamard(8))
+    
+
+    def im_show(X, axis_idx, ttl):
+        if len(X.shape) == 2:
+            # Grayscale image
+            axes[axis_idx].imshow(np.clip(X/max_x, 0, 1), cmap='gray')
+        else:
+            # Color image
+            axes[axis_idx].imshow(np.clip(X/max_x, 0, 1))    
+        axes[axis_idx].set_title(ttl)  
+        
 
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(12,4)) 
-    axes[0].imshow(np.clip(x/255, 0, 1)) 
-    axes[0].set_title(f'ground-truth\n range$\in$[{np.min(x):.1f},{np.max(x):.1f}]')  
-    axes[1].imshow(np.clip(z/255, 0, 1)) 
-    axes[1].set_title(f'noisy img\n PSNR={PSNR_nsy:.2f}(dB)')   
-    axes[2].imshow(np.clip(xhat/255, 0, 1))
-    axes[2].set_title(f'denoised img\n PSNR={PSNR_den:.2f}(dB)')  
+    im_show(x,    0, f'ground-truth\n range$\in$[{np.min(x):.1f},{np.max(x):.1f}]') 
+    im_show(z,    1, f'noisy img\n PSNR={PSNR_nsy:.2f}(dB)') 
+    im_show(xhat, 2, f'denoised img\n PSNR={PSNR_den:.2f}(dB)')
     for axi in axes.ravel(): axi.set_axis_off()
-    fig.suptitle(test_images[idx] + f' (noise std: {noise_std:.2f})')
+    fig.suptitle(test_image_name + f' (noise std: {noise_std:.2f})')
     plt.show() 
     
 
