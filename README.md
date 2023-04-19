@@ -31,12 +31,12 @@ soft- or hard-shrinkage), and $\lambda>0$ is a thresholding factor.
 \
 >>> Create a buffer block/cube (i.e. array of all ones)
 ```math
-w_i = 1
+w_i \equiv 1
 ```
 
 >> Add $\hat{x}_i^{w}$ to its corrsponding position in $\hat{x}$
 \
->> Add $\hat{w}$ to its corrsponding position in $w$
+>> Add $\hat{w}_i$ to its corrsponding position in $w$
 >
 > Compensating the effect of accumulation
 ```math
@@ -108,7 +108,7 @@ simply run the following command to see a denoising demo
 
 Traditional sliding filtering approach proceeding block-by-block 
 
-https://user-images.githubusercontent.com/48449082/225545412-93fdbfb5-a571-4d36-a45d-c9972f4a5d95.mp4
+https://user-images.githubusercontent.com/48449082/226089309-30db8c89-b9f2-4158-8ff8-89f502ec8148.mp4
 
 </br></br>
 
@@ -120,7 +120,7 @@ https://user-images.githubusercontent.com/48449082/225544822-81366711-1ff0-47ea-
 
 
 ## Disclaimer :copyright:
-Copyright (C) 2023    Nasser Eslahi
+Copyright &copy; 2023    Nasser Eslahi.    All right reserved.
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
