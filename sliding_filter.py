@@ -116,26 +116,27 @@ def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=Non
 
 
     ## setting the sparsifying/decorrelating transform bases
-    tm_0 = get_transform_matrix(partition_size[0], transform_type[0])
-    tm_1 = get_transform_matrix(partition_size[1], transform_type[1])
+    tm0, tm0_inv = get_transform_matrix(partition_size[0], transform_type[0])
+    tm1, tm1_inv = get_transform_matrix(partition_size[1], transform_type[1])
     if partition_size[2] != 1:
-        tm_2 = get_transform_matrix(partition_size[2], transform_type[2])
+        tm2, tm2_inv = get_transform_matrix(partition_size[2], transform_type[2])
     else:
-        tm_2 = np.array([1])
+        tm2 = np.array([1])
+        tm2_inv = tm2
 
 
     ## extracting blocks/cubes from the noisy image
     dmy = imreshape('parse', noisy_img, partition_size, step_size)
 
     ## computing the 2D/3D spectra of all extracted blocks/cubes
-    dmy = tm_0          @ reshp(dmy, (partition_size[0], -1))  
-    dmy = tm_1.conj()   @ reshp( 
+    dmy = tm0          @ reshp(dmy, (partition_size[0], -1))  
+    dmy = tm1.conj()   @ reshp( 
                             np.transpose( 
                                 reshp(dmy, (partition_size[0], partition_size[1], -1)),
                             [2, 0, 1]), 
                           (-1, partition_size[1])).T
 
-    dmy = tm_2.conj().T @ reshp(dmy.T, (partition_size[2], -1))
+    dmy = tm2.conj().T @ reshp(dmy.T, (partition_size[2], -1))
     dmy = reshp(dmy.T, (-1, np.prod(partition_size))).T
 
 
@@ -153,9 +154,9 @@ def sliding_filter(noisy_img, noise_std, transform_type=None, partition_size=Non
     
 
     ## computing the 2D/3D inverse transform of all spectra (getting denoised blocks/cubes)
-    dmy = tm_2.conj()   @ reshp(dmy.T, (-1, partition_size[2])).T
-    dmy = tm_1.conj().T @ reshp(dmy,   (-1,partition_size[1])).T 
-    dmy = tm_0.T        @ reshp(dmy,   (-1, partition_size[0])).T
+    dmy = tm2_inv.conj().T @ reshp(dmy.T, (-1, partition_size[2])).T
+    dmy = tm1_inv.conj()   @ reshp(dmy,   (-1,partition_size[1])).T 
+    dmy = tm0_inv          @ reshp(dmy,   (-1, partition_size[0])).T
     dmy = reshp(dmy, (np.prod(partition_size), -1))
 
     ## aggregating all extracted & denoised blocks/cubes into their original positions
@@ -255,9 +256,9 @@ def get_transform_matrix(N, transform_type, dec_levels=0):
         Tforward = (Tforward.T * np.sqrt(1.0 / np.sum(Tforward ** 2, axis=1))).T
 
     # # Compute the inverse transform matrix
-    # Tinverse = np.linalg.inv(Tforward)
+    Tinverse = np.linalg.inv(Tforward)
 
-    return Tforward
+    return Tforward, Tinverse
 
 
 
@@ -318,8 +319,7 @@ if __name__ == "__main__":
     ]
 
     # Load and display an image (selected randomly) from the above list
-    # idx = np.random.randint(0,len(test_images))
-    idx = 1
+    idx = np.random.randint(0,len(test_images))
     x = getattr(data, test_images[idx])()
     
     test_image_name = 'fake_cameraman!' if test_images[idx]=='camera' else test_images[idx]
